@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: appdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  userapi:
+    container_name: userapi
+    build:
+      context: .
+      dockerfile: /UserAPI/API/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=supersecret
+    depends_on:
+      - postgres
+
+  projectapi:
+    container_name: projectapi
+    build:
+      context: .
+      dockerfile: /ProjectAPI/API/Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      MongoDb__ConnectionString: mongodb://root:rootpassword@mongo:27017
+      MongoDb__DatabaseName: ProjectDB
+      UsersApi__Url: http://userapi:8080/api/
+    depends_on:
+      - mongo
+      - userapi
+
+volumes:
+  pgdata:
+  mongo-data:
